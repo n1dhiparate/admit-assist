@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admit-assist- Student Onboarding</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: hsl(210 20% 98%);
+      --fg: hsl(215 25% 14%);
+      --card: hsl(0 0% 100%);
+      --primary: hsl(168 60% 40%);
+      --primary-fg: #fff;
+      --muted: hsl(210 15% 95%);
+      --muted-fg: hsl(215 12% 50%);
+      --border: hsl(214 18% 90%);
+      --sidebar-bg: hsl(215 28% 17%);
+      --sidebar-bg2: hsl(215 32% 12%);
+      --sidebar-fg: hsl(210 20% 90%);
+      --sidebar-muted: hsl(215 20% 25%);
+      --sidebar-accent: hsl(168 60% 45%);
+      --chat-ai-bg: hsl(168 40% 95%);
+      --chat-ai-fg: hsl(215 25% 14%);
+      --radius: 0.75rem;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      height: 100vh;
+      overflow: hidden;
+    }
+    .layout { display: flex; height: 100vh; }
+    /* ─── Overlay ─── */
+    .overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.4);
+      z-index: 40;
+    }
+    .overlay.active { display: block; }
+    /* ─── Sidebar ─── */
+    .sidebar {
+      width: 320px;
+      background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg2) 100%);
+      display: flex; flex-direction: column;
+      flex-shrink: 0;
+      z-index: 50;
+      transition: transform .3s ease;
+    }
+    .sidebar-header {
+      padding: 24px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .sidebar-header .brand { display: flex; align-items: center; gap: 12px; }
+    .sidebar-header .icon-box {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: var(--sidebar-accent);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .sidebar-header .icon-box svg { width: 20px; height: 20px; color: #fff; }
+    .sidebar-header h1 { color: var(--sidebar-fg); font-size: 18px; font-weight: 700; line-height: 1.2; }
+    .sidebar-header .sub { color: var(--sidebar-fg); font-size: 12px; opacity: .6; }
+    .btn-close-sidebar {
+      display: none; background: none; border: none; color: var(--sidebar-fg); opacity: .6; cursor: pointer;
+    }
+    /* Progress */
+    .progress-section { padding: 0 24px 16px; }
+    .progress-label { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .progress-label span { font-size: 12px; font-weight: 500; color: var(--sidebar-fg); opacity: .7; }
+    .progress-label .pct { font-weight: 700; color: var(--sidebar-accent); opacity: 1; }
+    .progress-track { height: 8px; border-radius: 999px; background: var(--sidebar-muted); overflow: hidden; }
+    .progress-fill {
+      height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, hsl(168 60% 40%), hsl(168 70% 50%));
+      transition: width .5s ease;
+    }
+    /* Checklist */
+    .checklist-section { flex: 1; overflow-y: auto; padding: 0 16px 24px; }
+    .checklist-section .label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
+      font-weight: 600; color: var(--sidebar-fg); opacity: .4; padding: 0 8px; margin-bottom: 12px;
+    }
+    .checklist { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .checklist li button {
+      width: 100%; display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-radius: 8px; border: none; background: none;
+      font-size: 14px; font-weight: 500; color: var(--sidebar-fg); opacity: .8;
+      cursor: pointer; text-align: left; font-family: inherit; transition: all .2s;
+    }
+    .checklist li button:hover { opacity: 1; background: var(--sidebar-muted); }
+    .checklist li button.done {
+      color: var(--sidebar-accent); opacity: 1;
+      background: hsla(168 60% 45% / .1);
+    }
+    .checklist li button.done .item-text { text-decoration: line-through; opacity: .7; }
+    .checklist li button svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .checklist li button .circle { opacity: .4; }
+    /* Sidebar footer */
+    .sidebar-footer {
+      padding: 16px; border-top: 1px solid var(--sidebar-muted);
+      display: flex; align-items: center; gap: 12px; padding-left: 24px;
+    }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 999px;
+      background: var(--sidebar-accent); display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 12px; font-weight: 700;
+    }
+    .sidebar-footer .name { color: var(--sidebar-fg); font-size: 14px; font-weight: 500; }
+    .sidebar-footer .detail { color: var(--sidebar-fg); font-size: 12px; opacity: .5; }
+    /* ─── Chat Area ─── */
+    .chat { flex: 1; display: flex; flex-direction: column; height: 100vh; background: var(--bg); }
+    .chat-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 24px; height: 64px; border-bottom: 1px solid var(--border);
+      background: var(--card); flex-shrink: 0;
+    }
+    .btn-menu {
+      display: none; background: none; border: none; padding: 8px; margin-left: -8px;
+      border-radius: 8px; cursor: pointer; color: var(--muted-fg);
+    }
+    .btn-menu:hover { background: var(--muted); }
+    .chat-header .dot-box { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .chat-header .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--primary); animation: pulse 2s infinite; }
+    .chat-header .dot-label { font-size: 12px; color: var(--muted-fg); }
+    .header-icon {
+      width: 36px; height: 36px; border-radius: 999px;
+      background: hsla(168 60% 40% / .1); display: flex; align-items: center; justify-content: center;
+    }
+    .header-icon svg { width: 16px; height: 16px; color: var(--primary); }
+    .chat-header .title { font-size: 14px; font-weight: 600; }
+    .chat-header .subtitle { font-size: 12px; color: var(--muted-fg); }
+    /* Messages */
+    .messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+    .msg { display: flex; align-items: flex-end; gap: 10px; }
+    .msg.user { justify-content: flex-end; }
+    .msg .bot-avatar {
+      width: 28px; height: 28px; border-radius: 999px;
+      background: hsla(168 60% 40% / .1); display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-bottom: 4px;
+    }
+    .msg .bot-avatar svg { width: 14px; height: 14px; color: var(--primary); }
+    .bubble {
+      max-width: 60%; padding: 10px 16px; font-size: 14px; line-height: 1.6;
+    }
+    .bubble.ai {
+      background: var(--chat-ai-bg); color: var(--chat-ai-fg);
+      border-radius: 16px 16px 16px 6px;
+    }
+    .bubble.user {
+      background: var(--primary); color: var(--primary-fg);
+      border-radius: 16px 16px 6px 16px;
+    }
+    .msg .time { font-size: 10px; color: var(--muted-fg); margin-top: 4px; }
+    .msg.user .time { text-align: right; }
+    /* Typing indicator */
+    .typing { display: none; align-items: flex-end; gap: 10px; }
+    .typing.active { display: flex; }
+    .typing .dots { display: flex; gap: 4px; padding: 12px 16px; background: var(--chat-ai-bg); border-radius: 16px 16px 16px 6px; }
+    .typing .dots span {
+      width: 8px; height: 8px; border-radius: 999px;
+      background: hsla(168 60% 40% / .4); animation: bounce .6s infinite alternate;
+    }
+    .typing .dots span:nth-child(2) { animation-delay: .15s; }
+    .typing .dots span:nth-child(3) { animation-delay: .3s; }
+    /* Input */
+    .chat-input-area {
+      flex-shrink: 0; border-top: 1px solid var(--border);
+      background: var(--card); padding: 16px 24px;
+    }
+    .input-wrap {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--muted); border-radius: 12px; padding: 8px 16px;
+    }
+    .input-wrap input {
+      flex: 1; border: none; background: none; outline: none;
+      font-size: 14px; color: var(--fg); font-family: inherit;
+    }
+    .input-wrap input::placeholder { color: var(--muted-fg); }
+    .btn-send {
+      width: 36px; height: 36px; border-radius: 8px; border: none;
+      background: var(--primary); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; transition: opacity .2s;
+    }
+    .btn-send:disabled { opacity: .3; cursor: default; }
+    .btn-send svg { width: 16px; height: 16px; }
+    .disclaimer { font-size: 10px; color: var(--muted-fg); text-align: center; margin-top: 8px; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+    @keyframes bounce {
+      to { transform: translateY(-6px); }
+    }
+    /* ─── Responsive ─── */
+    @media (max-width: 1023px) {
+      .sidebar {
+        position: fixed; inset: 0; right: auto;
+        transform: translateX(-100%);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .btn-close-sidebar { display: block; }
+      .btn-menu { display: block; }
+      .bubble { max-width: 80%; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <!-- Overlay -->
+  <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="icon-box">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5"/></svg>
+        </div>
+        <div>
+          <h1>Admit-assist</h1>
+          <span class="sub">Onboarding AI agent</span>
+        </div>
+      </div>
+      <button class="btn-close-sidebar" onclick="toggleSidebar()">
+        <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="progress-section">
+      <div class="progress-label">
+        <span>Onboarding Progress</span>
+        <span class="pct" id="progress-pct">25%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill" style="width:25%"></div>
+      </div>
+    </div>
+    <div class="checklist-section">
+      <div class="label">Checklist</div>
+      <ul class="checklist" id="checklist"></ul>
+    </div>
+    <div class="sidebar-footer">
+      <div class="avatar">JS</div>
+      <div>
+        <div class="name">Nidhi Parate</div>
+        <div class="detail">Graduation Year: 2028</div>
+      </div>
+    </div>
+  </aside>
+  <!-- Chat -->
+  <div class="chat">
+    <header class="chat-header">
+      <button class="btn-menu" onclick="toggleSidebar()">
+        <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="header-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+      </div>
+      <div>
+        <div class="title">Onboarding AI Agent</div>
+        <div class="subtitle">Always here to help</div>
+      </div>
+      <div class="dot-box">
+        <span class="dot"></span>
+        <span class="dot-label">Online</span>
+      </div>
+    </header>
+    <div class="messages" id="messages"></div>
+    <div class="typing" id="typing">
+      <div class="bot-avatar">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" x2="8" y1="16" y2="16"/><line x1="16" x2="16" y1="16" y2="16"/></svg>
+      </div>
+      <div class="dots"><span></span><span></span><span></span></div>
+    </div>
+    <div class="chat-input-area">
+      <form class="input-wrap" onsubmit="sendMessage(event)">
+        <input type="text" id="chatInput" placeholder="Ask me anything about campus..." autocomplete="off" />
+        <button type="submit" class="btn-send" id="btnSend" disabled>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4zM22 2 11 13"/></svg>
+        </button>
+      </form>
+      <p class="disclaimer">CampusAI may make mistakes. Verify important information with your advisor.</p>
+    </div>
+  </div>
+</div>
+<script>
+/* ================================
+   DATA
+================================ */
+
+const items = [
+  { id:1, label:"Document verification", done:true },
+  { id:2, label:"Fee payment", done:true },
+  { id:3, label:"Course registration", done:false },
+  { id:4, label:"Hostel allocation", done:false },
+  { id:5, label:"LMS onboarding", done:false },
+  { id:6, label:"Get Campus Tour", done:false },
+  { id:8, label:"Join Student Groups", done:false },
+];
+
+const seedMessages = [
+  { text:"Hey Nidhi! 👋 Welcome to campus! ", sender:"ai", time:"9:00 AM" }
+];
+
+const botAvatarHTML = `
+<div class="bot-avatar">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <rect width="18" height="10" x="3" y="11" rx="2"/>
+    <circle cx="12" cy="5" r="2"/>
+    <path d="M12 7v4"/>
+  </svg>
+</div>
+`;
+
+/* ================================
+   CHECKLIST LOGIC
+================================ */
+
+function renderChecklist() {
+  const el = document.getElementById('checklist');
+
+  el.innerHTML = items.map(i => `
+    <li>
+      <button class="${i.done ? 'done' : ''}" onclick="toggleItem(${i.id})">
+        ${i.done ? "✔️" : "⭕"}
+        <span class="item-text">${i.label}</span>
+      </button>
+    </li>
+  `).join('');
+
+  const pct = Math.round(
+    items.filter(i => i.done).length / items.length * 100
+  );
+
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+function toggleItem(id) {
+  const item = items.find(i => i.id === id);
+  if (item) item.done = !item.done;
+  renderChecklist();
+}
+
+/* ================================
+   CHAT UI HELPERS
+================================ */
+
+function addMessage(text, sender, time) {
+  const container = document.getElementById('messages');
+  const isUser = sender === 'user';
+
+  const messageHTML = `
+    <div class="msg ${sender}">
+      ${!isUser ? botAvatarHTML : ''}
+      <div>
+        <div class="bubble ${sender}">${escapeHTML(text)}</div>
+        <div class="time">${time}</div>
+      </div>
+    </div>
+  `;
+
+  container.insertAdjacentHTML("beforeend", messageHTML);
+  container.scrollTop = container.scrollHeight;
+}
+
+function escapeHTML(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function getCurrentTime() {
+  return new Date().toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+/* ================================
+   SEND MESSAGE (REAL FLASK CALL)
+================================ */
+
+async function sendMessage(e) {
+  e.preventDefault();
+
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  addMessage(text, 'user', getCurrentTime());
+
+  input.value = '';
+  document.getElementById('btnSend').disabled = true;
+
+  const typing = document.getElementById('typing');
+  typing.classList.add('active');
+
+  try {
+    const response = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
+    });
+
+    const data = await response.json();
+
+    typing.classList.remove('active');
+
+    if (!response.ok) {
+      addMessage("⚠️ Server error. Please try again.", 'ai', getCurrentTime());
+      return;
+    }
+
+    addMessage(
+      data.reply || "⚠️ No response from AI.",
+      'ai',
+      getCurrentTime()
+    );
+
+  } catch (err) {
+    typing.classList.remove('active');
+    addMessage("⚠️ Connection error. Backend unreachable.", 'ai', getCurrentTime());
+  }
+
+  document.getElementById('btnSend').disabled = false;
+}
+
+/* ================================
+   SIDEBAR TOGGLE
+================================ */
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('active');
+}
+
+/* ================================
+   INIT
+================================ */
+
+document.getElementById('chatInput').addEventListener('input', function () {
+  document.getElementById('btnSend').disabled = !this.value.trim();
+});
+
+renderChecklist();
+seedMessages.forEach(m => addMessage(m.text, m.sender, m.time));
+</script>
+</body>
+</html>
