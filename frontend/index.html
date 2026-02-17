@@ -290,17 +290,15 @@
 ================================ */
 
 const items = [
-  { id:1, label:"Document verification", done:true },
-  { id:2, label:"Fee payment", done:true },
-  { id:3, label:"Course registration", done:false },
-  { id:4, label:"Hostel allocation", done:false },
-  { id:5, label:"LMS onboarding", done:false },
-  { id:6, label:"Get Campus Tour", done:false },
-  { id:8, label:"Join Student Groups", done:false },
+  { id:"document_verification", label:"Complete document verification", done:false },
+  { id:"fee_payment", label:"Pay semester fees", done:false },
+  { id:"course_registration", label:"Register for courses", done:false },
+  { id:"hostel_allocation", label:"Apply for hostel", done:false },
+  { id:"lms_onboarding", label:"Complete LMS onboarding", done:false }
 ];
 
 const seedMessages = [
-  { text:"Hey Nidhi! 👋 Welcome to campus! ", sender:"ai", time:"9:00 AM" }
+  { text:"Hey Nidhi! 👋 Welcome to campus!", sender:"ai", time:"9:00 AM" }
 ];
 
 const botAvatarHTML = `
@@ -322,7 +320,7 @@ function renderChecklist() {
 
   el.innerHTML = items.map(i => `
     <li>
-      <button class="${i.done ? 'done' : ''}" onclick="toggleItem(${i.id})">
+      <button class="${i.done ? 'done' : ''}" onclick="toggleItem('${i.id}')">
         ${i.done ? "✔️" : "⭕"}
         <span class="item-text">${i.label}</span>
       </button>
@@ -339,7 +337,32 @@ function renderChecklist() {
 
 function toggleItem(id) {
   const item = items.find(i => i.id === id);
-  if (item) item.done = !item.done;
+  if (item) {
+    item.done = !item.done;
+    renderChecklist();
+  }
+}
+
+/* ================================
+   STATUS SYNC FROM BACKEND
+================================ */
+
+async function loadStatus() {
+  const response = await fetch('/status');
+  const data = await response.json();
+
+  const total = Object.keys(data).length;
+  const completed = Object.values(data).filter(v => v === true).length;
+  const percent = Math.round((completed / total) * 100);
+
+  document.getElementById('progress-pct').textContent = percent + "%";
+  document.getElementById('progress-fill').style.width = percent + "%";
+
+  // Sync checklist visually
+  items.forEach(item => {
+    item.done = data[item.id];
+  });
+
   renderChecklist();
 }
 
@@ -380,7 +403,7 @@ function getCurrentTime() {
 }
 
 /* ================================
-   SEND MESSAGE (REAL FLASK CALL)
+   SEND MESSAGE
 ================================ */
 
 async function sendMessage(e) {
@@ -388,7 +411,6 @@ async function sendMessage(e) {
 
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
-
   if (!text) return;
 
   addMessage(text, 'user', getCurrentTime());
@@ -407,7 +429,6 @@ async function sendMessage(e) {
     });
 
     const data = await response.json();
-
     typing.classList.remove('active');
 
     if (!response.ok) {
@@ -420,6 +441,9 @@ async function sendMessage(e) {
       'ai',
       getCurrentTime()
     );
+
+    // Update progress AFTER backend change
+    await loadStatus();
 
   } catch (err) {
     typing.classList.remove('active');
@@ -448,6 +472,5 @@ document.getElementById('chatInput').addEventListener('input', function () {
 
 renderChecklist();
 seedMessages.forEach(m => addMessage(m.text, m.sender, m.time));
+loadStatus();
 </script>
-</body>
-</html>
