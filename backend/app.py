@@ -52,10 +52,10 @@ def chat():
             "reply": (
                 "🎓 Congratulations on your admission!\n\n"
                 "Here are your onboarding steps:\n\n"
-                "1️⃣ Complete document verification\n"
-                "2️⃣ Pay semester fees\n"
-                "3️⃣ Register for courses\n"
-                "4️⃣ Apply for hostel (if required)\n"
+                "1️⃣ Complete document verification\n\n"
+                "2️⃣ Pay semester fees\n\n"
+                "3️⃣ Register for courses\n\n"
+                "4️⃣ Apply for hostel (if required)\n\n"
                 "5️⃣ Complete LMS onboarding\n\n"
                 "You can tell me once you complete a step, and I’ll update your progress."
             )
@@ -102,14 +102,21 @@ def chat():
 
         if context:
             prompt_text = f"""
-You are an onboarding assistant.
-Use ONLY the information below to answer the question.
+You are a strict onboarding assistant.
 
-Official Brochure Information:
+You MUST answer using ONLY the information provided in the Official Brochure below.
+Do NOT ask for additional clarification.
+Do NOT add assumptions.
+If the answer is not found in the brochure, say:
+"I do not have official information about this in the brochure."
+
+Official Brochure:
 {context}
 
-Question:
+User Question:
 {user_message}
+
+Give a short, direct answer.
 """
         else:
             prompt_text = user_message
