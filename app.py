@@ -8,7 +8,7 @@ import requests
 load_dotenv()
 
 # Create Flask app
-app = Flask(__name__, static_folder="../frontend", static_url_path="")
+app = Flask(__name__, static_folder="frontend", static_url_path="")
 CORS(app)
 
 
@@ -159,4 +159,5 @@ Give a short, direct answer.
    
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=10000)
+
