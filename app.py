@@ -11,7 +11,6 @@ load_dotenv()
 app = Flask(__name__, static_folder="frontend", static_url_path="")
 CORS(app)
 
-
 # Get API key
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
@@ -23,7 +22,6 @@ onboarding_status = {
     "hostel_allocation": False,
     "lms_onboarding": False
 }
- 
 
 # Serve frontend
 @app.route('/')
@@ -77,25 +75,24 @@ def chat():
     if "lms" in message and "setup" in message:
         onboarding_status["lms_onboarding"] = True
 
-    # 🔹 SIMPLE RAG RETRIEVAL
+    # 🔹 IMPROVED SIMPLE RAG RETRIEVAL
     context = ""
 
-    rag_keywords = [
-        "deadline",
-        "date",
-        "when",
-        "schedule",
-        "last date",
-        "fee payment",
-        "registration date"
-    ]
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(base_dir, "data", "admission_brochure.txt")
 
-    if any(keyword in message for keyword in rag_keywords):
-        try:
-            with open("data/admission_brochure.txt", "r", encoding="utf-8") as f:
-                context = f.read()
-        except:
-            context = ""
+        with open(file_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        # Retrieve most relevant line
+        for line in lines:
+            if any(word in line.lower() for word in message.split()):
+                context = line.strip()
+                break
+
+    except Exception as e:
+        print("RAG ERROR:", e)
 
     try:
         url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
@@ -155,9 +152,6 @@ Give a short, direct answer.
     except Exception as e:
         return jsonify({"reply": f"Server error: {str(e)}"}), 500
 
-    
-   
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000)
-
