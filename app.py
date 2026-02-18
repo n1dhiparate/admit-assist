@@ -3,6 +3,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 import requests
+from backend.rag import retrieve_context   # ✅ Using rag.py properly
 
 # Load environment variables
 load_dotenv()
@@ -14,7 +15,7 @@ CORS(app)
 # Get API key
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# ✅ GLOBAL ONBOARDING STATUS (outside functions)
+# ✅ GLOBAL ONBOARDING STATUS
 onboarding_status = {
     "document_verification": False,
     "fee_payment": False,
@@ -75,24 +76,8 @@ def chat():
     if "lms" in message and "setup" in message:
         onboarding_status["lms_onboarding"] = True
 
-    # 🔹 IMPROVED SIMPLE RAG RETRIEVAL
-    context = ""
-
-    try:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(base_dir, "data", "admission_brochure.txt")
-
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-
-        # Retrieve most relevant line
-        for line in lines:
-            if any(word in line.lower() for word in message.split()):
-                context = line.strip()
-                break
-
-    except Exception as e:
-        print("RAG ERROR:", e)
+    # ✅ USE RAG PROPERLY
+    context = retrieve_context(user_message)
 
     try:
         url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
@@ -101,10 +86,9 @@ def chat():
             prompt_text = f"""
 You are a strict onboarding assistant.
 
-You MUST answer using ONLY the information provided in the Official Brochure below.
-Do NOT ask for additional clarification.
+You MUST answer using ONLY the information provided below.
 Do NOT add assumptions.
-If the answer is not found in the brochure, say:
+If the answer is not found, say:
 "I do not have official information about this in the brochure."
 
 Official Brochure:
