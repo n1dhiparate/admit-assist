@@ -3,474 +3,302 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admit-assist- Student Onboarding</title>
+  <title>Admit-assist | Premium Student Portal</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: hsl(210 20% 98%);
-      --fg: hsl(215 25% 14%);
-      --card: hsl(0 0% 100%);
-      --primary: hsl(168 60% 40%);
-      --primary-fg: #fff;
-      --muted: hsl(210 15% 95%);
-      --muted-fg: hsl(215 12% 50%);
-      --border: hsl(214 18% 90%);
-      --sidebar-bg: hsl(215 28% 17%);
-      --sidebar-bg2: hsl(215 32% 12%);
-      --sidebar-fg: hsl(210 20% 90%);
-      --sidebar-muted: hsl(215 20% 25%);
-      --sidebar-accent: hsl(168 60% 45%);
-      --chat-ai-bg: hsl(168 40% 95%);
-      --chat-ai-fg: hsl(215 25% 14%);
-      --radius: 0.75rem;
+      --bg: #fdfdfd; 
+      --fg: #1c1917; 
+      --card: rgba(255, 255, 255, 0.6);
+      --primary: #79A3C3; 
+      --primary-fg: #FFFFFF;
+      --border: rgba(0, 0, 0, 0.06);
+      --sidebar-bg: #2d221e; 
+      --sidebar-fg: #f5f0ee;
+      --sidebar-muted: rgba(245, 240, 238, 0.5);
+      --sidebar-accent: #79A3C3;
+      --radius: 1.5rem;
+      --mesh-1: hsla(202, 60%, 92%, 1);
+      --mesh-2: hsla(25, 60%, 90%, 1);
+      --bubble-ai: #ffffff;
+      --input-bg: #ffffff;
     }
+
+    body.dark-mode {
+      --bg: #0c0a09; 
+      --fg: #f5f0ee; 
+      --card: rgba(28, 25, 23, 0.6); 
+      --border: rgba(255, 255, 255, 0.06);
+      --mesh-1: #1a171e; 
+      --mesh-2: #261b18; 
+      --bubble-ai: #1c1917;
+      --input-bg: #1c1917;
+      --sidebar-bg: #141211;
+    }
+
     body {
       font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-      background: var(--bg);
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(at 0% 0%, var(--mesh-1) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, var(--mesh-2) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, var(--mesh-1) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, var(--mesh-2) 0px, transparent 50%);
       color: var(--fg);
       height: 100vh;
       overflow: hidden;
+      transition: all 0.5s ease;
     }
-    .layout { display: flex; height: 100vh; }
-    /* ─── Overlay ─── */
-    .overlay {
-      display: none;
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,.4);
-      z-index: 40;
-    }
-    .overlay.active { display: block; }
-    /* ─── Sidebar ─── */
+
+    .layout { display: flex; height: 100vh; padding: 24px; gap: 24px; }
+
     .sidebar {
-      width: 320px;
-      background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg2) 100%);
+      width: 340px;
+      min-width: 340px;
+      background: var(--sidebar-bg);
       display: flex; flex-direction: column;
       flex-shrink: 0;
-      z-index: 50;
-      transition: transform .3s ease;
+      border-radius: var(--radius);
+      transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      backdrop-filter: blur(40px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
-    .sidebar-header {
-      padding: 24px; display: flex; align-items: center; justify-content: space-between;
+    .sidebar.closed { margin-left: -364px; opacity: 0; pointer-events: none; }
+
+    .sidebar-header { padding: 32px 24px 20px; display: flex; align-items: center; gap: 16px; }
+    .scroll-area { flex: 1; overflow-y: auto; padding: 0 16px 20px; scrollbar-width: none; }
+    .scroll-area::-webkit-scrollbar { display: none; }
+
+    .id-card-preview {
+      background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 16px;
+      margin: 0 8px 24px;
+      display: flex;
+      align-items: center; gap: 16px;
     }
-    .sidebar-header .brand { display: flex; align-items: center; gap: 12px; }
-    .sidebar-header .icon-box {
-      width: 40px; height: 40px; border-radius: 12px;
-      background: var(--sidebar-accent);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .sidebar-header .icon-box svg { width: 20px; height: 20px; color: #fff; }
-    .sidebar-header h1 { color: var(--sidebar-fg); font-size: 18px; font-weight: 700; line-height: 1.2; }
-    .sidebar-header .sub { color: var(--sidebar-fg); font-size: 12px; opacity: .6; }
-    .btn-close-sidebar {
-      display: none; background: none; border: none; color: var(--sidebar-fg); opacity: .6; cursor: pointer;
-    }
-    /* Progress */
-    .progress-section { padding: 0 24px 16px; }
-    .progress-label { display: flex; justify-content: space-between; margin-bottom: 8px; }
-    .progress-label span { font-size: 12px; font-weight: 500; color: var(--sidebar-fg); opacity: .7; }
-    .progress-label .pct { font-weight: 700; color: var(--sidebar-accent); opacity: 1; }
-    .progress-track { height: 8px; border-radius: 999px; background: var(--sidebar-muted); overflow: hidden; }
-    .progress-fill {
-      height: 100%; border-radius: 999px;
-      background: linear-gradient(90deg, hsl(168 60% 40%), hsl(168 70% 50%));
-      transition: width .5s ease;
-    }
-    /* Checklist */
-    .checklist-section { flex: 1; overflow-y: auto; padding: 0 16px 24px; }
-    .checklist-section .label {
-      font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
-      font-weight: 600; color: var(--sidebar-fg); opacity: .4; padding: 0 8px; margin-bottom: 12px;
-    }
-    .checklist { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .id-photo { width: 56px; height: 56px; border-radius: 14px; background: rgba(255,255,255,0.1); overflow: hidden; }
+    .id-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .id-info h4 { font-size: 14px; color: #fff; font-weight: 700; }
+    .id-info p { font-size: 10px; color: var(--sidebar-muted); font-weight: 800; letter-spacing: 0.05em; }
+
+    .sidebar-label { font-size: 10px; font-weight: 800; color: var(--sidebar-muted); text-transform: uppercase; letter-spacing: 0.1em; padding: 0 12px 12px; }
+
+    .checklist { list-style: none; margin-bottom: 32px; }
     .checklist li button {
       width: 100%; display: flex; align-items: center; gap: 12px;
-      padding: 10px 12px; border-radius: 8px; border: none; background: none;
-      font-size: 14px; font-weight: 500; color: var(--sidebar-fg); opacity: .8;
-      cursor: pointer; text-align: left; font-family: inherit; transition: all .2s;
+      padding: 12px 14px; border-radius: 12px; border: 1px solid transparent; background: transparent;
+      font-size: 13px; font-weight: 600; color: rgba(245, 240, 238, 0.7);
+      cursor: pointer; transition: 0.2s;
     }
-    .checklist li button:hover { opacity: 1; background: var(--sidebar-muted); }
-    .checklist li button.done {
-      color: var(--sidebar-accent); opacity: 1;
-      background: hsla(168 60% 45% / .1);
-    }
-    .checklist li button.done .item-text { text-decoration: line-through; opacity: .7; }
-    .checklist li button svg { width: 16px; height: 16px; flex-shrink: 0; }
-    .checklist li button .circle { opacity: .4; }
-    /* Sidebar footer */
-    .sidebar-footer {
-      padding: 16px; border-top: 1px solid var(--sidebar-muted);
-      display: flex; align-items: center; gap: 12px; padding-left: 24px;
-    }
-    .avatar {
-      width: 32px; height: 32px; border-radius: 999px;
-      background: var(--sidebar-accent); display: flex; align-items: center; justify-content: center;
-      color: #fff; font-size: 12px; font-weight: 700;
-    }
-    .sidebar-footer .name { color: var(--sidebar-fg); font-size: 14px; font-weight: 500; }
-    .sidebar-footer .detail { color: var(--sidebar-fg); font-size: 12px; opacity: .5; }
-    /* ─── Chat Area ─── */
-    .chat { flex: 1; display: flex; flex-direction: column; height: 100vh; background: var(--bg); }
-    .chat-header {
-      display: flex; align-items: center; gap: 12px;
-      padding: 0 24px; height: 64px; border-bottom: 1px solid var(--border);
-      background: var(--card); flex-shrink: 0;
-    }
-    .btn-menu {
-      display: none; background: none; border: none; padding: 8px; margin-left: -8px;
-      border-radius: 8px; cursor: pointer; color: var(--muted-fg);
-    }
-    .btn-menu:hover { background: var(--muted); }
-    .chat-header .dot-box { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-    .chat-header .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--primary); animation: pulse 2s infinite; }
-    .chat-header .dot-label { font-size: 12px; color: var(--muted-fg); }
-    .header-icon {
-      width: 36px; height: 36px; border-radius: 999px;
-      background: hsla(168 60% 40% / .1); display: flex; align-items: center; justify-content: center;
-    }
-    .header-icon svg { width: 16px; height: 16px; color: var(--primary); }
-    .chat-header .title { font-size: 14px; font-weight: 600; }
-    .chat-header .subtitle { font-size: 12px; color: var(--muted-fg); }
-    /* Messages */
-    .messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
-    .msg { display: flex; align-items: flex-end; gap: 10px; }
-    .msg.user { justify-content: flex-end; }
-    .msg .bot-avatar {
-      width: 28px; height: 28px; border-radius: 999px;
-      background: hsla(168 60% 40% / .1); display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; margin-bottom: 4px;
-    }
-    .msg .bot-avatar svg { width: 14px; height: 14px; color: var(--primary); }
-    .bubble {
-      max-width: 60%; padding: 10px 16px; font-size: 14px; line-height: 1.6;
-    }
-    .bubble.ai {
-      background: var(--chat-ai-bg); color: var(--chat-ai-fg);
-      border-radius: 16px 16px 16px 6px;
-    }
-    .bubble.user {
-      background: var(--primary); color: var(--primary-fg);
-      border-radius: 16px 16px 6px 16px;
-    }
-    .msg .time { font-size: 10px; color: var(--muted-fg); margin-top: 4px; }
-    .msg.user .time { text-align: right; }
-    /* Typing indicator */
-    .typing { display: none; align-items: flex-end; gap: 10px; }
-    .typing.active { display: flex; }
-    .typing .dots { display: flex; gap: 4px; padding: 12px 16px; background: var(--chat-ai-bg); border-radius: 16px 16px 16px 6px; }
-    .typing .dots span {
-      width: 8px; height: 8px; border-radius: 999px;
-      background: hsla(168 60% 40% / .4); animation: bounce .6s infinite alternate;
-    }
-    .typing .dots span:nth-child(2) { animation-delay: .15s; }
-    .typing .dots span:nth-child(3) { animation-delay: .3s; }
-    /* Input */
-    .chat-input-area {
-      flex-shrink: 0; border-top: 1px solid var(--border);
-      background: var(--card); padding: 16px 24px;
-    }
-    .input-wrap {
-      display: flex; align-items: center; gap: 12px;
-      background: var(--muted); border-radius: 12px; padding: 8px 16px;
-    }
-    .input-wrap input {
-      flex: 1; border: none; background: none; outline: none;
-      font-size: 14px; color: var(--fg); font-family: inherit;
-    }
-    .input-wrap input::placeholder { color: var(--muted-fg); }
-    .btn-send {
-      width: 36px; height: 36px; border-radius: 8px; border: none;
-      background: var(--primary); color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; flex-shrink: 0; transition: opacity .2s;
-    }
-    .btn-send:disabled { opacity: .3; cursor: default; }
-    .btn-send svg { width: 16px; height: 16px; }
-    .disclaimer { font-size: 10px; color: var(--muted-fg); text-align: center; margin-top: 8px; }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: .4; }
-    }
-    @keyframes bounce {
-      to { transform: translateY(-6px); }
-    }
-    /* ─── Responsive ─── */
-    @media (max-width: 1023px) {
-      .sidebar {
-        position: fixed; inset: 0; right: auto;
-        transform: translateX(-100%);
-      }
-      .sidebar.open { transform: translateX(0); }
-      .btn-close-sidebar { display: block; }
-      .btn-menu { display: block; }
-      .bubble { max-width: 80%; }
-    }
+    .checklist li button:hover { background: rgba(255,255,255,0.05); color: #fff; }
+    .checklist li button.done { color: #fff; background: rgba(121, 163, 195, 0.12); }
+    .check-mark { width: 18px; height: 18px; border-radius: 6px; border: 2px solid rgba(255,245,238,0.2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .done .check-mark { background: var(--sidebar-accent); border-color: var(--sidebar-accent); }
+
+    .planner-widget { background: rgba(255,255,255,0.03); border-radius: 18px; padding: 16px; border: 1px solid rgba(255,255,255,0.05); margin: 0 8px 24px; }
+    .planner-item { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 10px; font-size: 12px; color: #fff; font-weight: 600; margin-bottom: 6px; }
+    .add-course-form { display: flex; gap: 8px; margin-top: 12px; }
+    .add-course-form input { flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 6px 12px; color: #fff; font-size: 11px; outline: none; }
+    .add-course-form button { background: var(--sidebar-accent); border: none; border-radius: 8px; width: 30px; color: #fff; cursor: pointer; font-weight: 800; }
+
+    .sidebar-footer { padding: 24px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 14px; }
+    .avatar { width: 44px; height: 44px; border-radius: 14px; background: var(--sidebar-accent); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; cursor: pointer; overflow: hidden; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .chat { flex: 1; display: flex; flex-direction: column; background: var(--card); border-radius: var(--radius); backdrop-filter: blur(30px); border: 1px solid var(--border); overflow: hidden; box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05); transition: all 0.5s ease; }
+    .chat-header { display: flex; align-items: center; gap: 16px; padding: 0 40px; height: 100px; border-bottom: 1px solid var(--border); }
+    .weather-info { font-size: 12px; font-weight: 700; color: var(--fg); opacity: 0.6; display: flex; align-items: center; gap: 6px; margin-left: 20px; }
+    .btn-theme { margin-left: auto; background: var(--fg); color: var(--bg); border: none; padding: 10px 24px; border-radius: 12px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: 0.3s; }
+
+    .messages { flex: 1; overflow-y: auto; padding: 40px; display: flex; flex-direction: column; gap: 32px; scroll-behavior: smooth; }
+    .bubble { max-width: 60%; padding: 18px 24px; font-size: 15px; font-weight: 500; border-radius: 24px 24px 24px 8px; background: var(--bubble-ai); border: 1px solid var(--border); line-height: 1.6; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
+    .bubble.user { background: var(--sidebar-bg); color: #fff; border-radius: 24px 24px 6px 24px; border: none; }
+
+    .quick-chips { display: flex; gap: 10px; padding: 0 40px 16px; overflow-x: auto; scrollbar-width: none; }
+    .quick-chips button { background: var(--card); color: var(--fg); border: 1px solid var(--border); padding: 8px 16px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+    .quick-chips button:hover { background: var(--sidebar-bg); color: #fff; }
+
+    .chat-input-area { padding: 0 40px 32px; }
+    .input-wrap { display: flex; align-items: center; gap: 12px; background: var(--input-bg); border-radius: 20px; padding: 8px 8px 8px 18px; border: 1px solid var(--border); box-shadow: 0 8px 20px rgba(0,0,0,0.02); }
+    .input-wrap input { flex: 1; border: none; outline: none; font-size: 15px; font-weight: 600; color: var(--fg); background: transparent; }
+    .btn-upload { width: 44px; height: 44px; border-radius: 14px; border: none; background: transparent; color: var(--fg); cursor: pointer; opacity: 0.5; transition: 0.2s; }
+    .btn-send { width: 44px; height: 44px; border-radius: 14px; border: none; background: var(--sidebar-bg); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+    @keyframes msgFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body>
 <div class="layout">
-  <!-- Overlay -->
-  <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
-  <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="brand">
-        <div class="icon-box">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5"/></svg>
-        </div>
-        <div>
-          <h1>Admit-assist</h1>
-          <span class="sub">Onboarding AI agent</span>
-        </div>
-      </div>
-      <button class="btn-close-sidebar" onclick="toggleSidebar()">
-        <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
+      <div style="width:40px;height:40px;background:var(--sidebar-accent);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;">A</div>
+      <h1 style="color:#fff;font-size:20px;font-weight:800;">Admit-assist</h1>
     </div>
-    <div class="progress-section">
-      <div class="progress-label">
-        <span>Onboarding Progress</span>
-        <span class="pct" id="progress-pct">25%</span>
+    
+    <div class="scroll-area">
+      <div class="id-card-preview">
+        <div class="id-photo" id="idPhotoPreview"></div>
+        <div class="id-info">
+          <h4>Nidhi Parate</h4>
+          <p id="idStatus">2nd Year B.Tech IT</p>
+        </div>
       </div>
-      <div class="progress-track">
-        <div class="progress-fill" id="progress-fill" style="width:25%"></div>
+
+      <div class="sidebar-label">Onboarding Progress <span id="progress-pct">0%</span></div>
+      <div style="height:6px;background:rgba(255,255,255,0.1);border-radius:10px;margin:0 12px 28px;overflow:hidden;">
+        <div id="progress-fill" style="height:100%;width:0%;background:var(--sidebar-accent);transition:1.2s cubic-bezier(0.34, 1.56, 0.64, 1);"></div>
       </div>
-    </div>
-    <div class="checklist-section">
-      <div class="label">Checklist</div>
+
+      <div class="sidebar-label">Action Items</div>
       <ul class="checklist" id="checklist"></ul>
+
+      <div class="sidebar-label">Course Planner</div>
+      <div class="planner-widget">
+        <div id="plannerList">
+          <div class="planner-item"><span>Operating Systems</span><span style="opacity:0.4">IT301</span></div>
+          <div class="planner-item"><span>Database Systems</span><span style="opacity:0.4">IT302</span></div>
+        </div>
+        <form class="add-course-form" onsubmit="addCourse(event)">
+          <input type="text" id="courseInput" placeholder="New subject..." required>
+          <button type="submit">+</button>
+        </form>
+      </div>
     </div>
+
     <div class="sidebar-footer">
-      <div class="avatar">JS</div>
-      <div>
-        <div class="name">Nidhi Parate</div>
-        <div class="detail">Graduation Year: 2028</div>
+      <div class="avatar" id="avatarDisplay" onclick="document.getElementById('avatarInput').click()">NP</div>
+      <input type="file" id="avatarInput" style="display:none" accept="image/*" onchange="handleAvatarUpload(this)">
+      <div style="color:#fff;">
+        <div style="font-weight:700;font-size:14px;">Nidhi Parate</div>
+        <div style="font-size:11px;opacity:0.5;">B.Tech IT Student</div>
       </div>
     </div>
   </aside>
-  <!-- Chat -->
-  <div class="chat">
+
+  <main class="chat">
     <header class="chat-header">
-      <button class="btn-menu" onclick="toggleSidebar()">
-        <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-      </button>
-      <div class="header-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
-      </div>
-      <div>
-        <div class="title">Onboarding AI Agent</div>
-        <div class="subtitle">Always here to help</div>
-      </div>
-      <div class="dot-box">
-        <span class="dot"></span>
-        <span class="dot-label">Online</span>
-      </div>
+      <button onclick="toggleSidebar()" style="background:none;border:none;cursor:pointer;color:var(--fg);font-size:22px;">☰</button>
+      <div class="weather-info"><span>Mumbai</span><span>•</span><span id="weatherText">25°C Clear</span></div>
+      <button id="themeToggleBtn" class="btn-theme" onclick="toggleTheme()">Dark Mode</button>
     </header>
+    
     <div class="messages" id="messages"></div>
-    <div class="typing" id="typing">
-      <div class="bot-avatar">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" x2="8" y1="16" y2="16"/><line x1="16" x2="16" y1="16" y2="16"/></svg>
-      </div>
-      <div class="dots"><span></span><span></span><span></span></div>
+    
+    <div class="quick-chips">
+      <button onclick="sendQuickMessage('When is the hostel deadline?')">Hostel Info</button>
+      <button onclick="sendQuickMessage('How do I verify documents?')">Verification</button>
+      <button onclick="sendQuickMessage('What are the semester fees?')">Fee Inquiry</button>
     </div>
+
     <div class="chat-input-area">
       <form class="input-wrap" onsubmit="sendMessage(event)">
-        <input type="text" id="chatInput" placeholder="Ask me anything about campus..." autocomplete="off" />
-        <button type="submit" class="btn-send" id="btnSend" disabled>
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4zM22 2 11 13"/></svg>
+        <button type="button" class="btn-upload" title="Upload for RAG context" onclick="document.getElementById('docUpload').click()">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
         </button>
+        <input type="file" id="docUpload" style="display:none" onchange="handleDocUpload(this)">
+        <input type="text" id="chatInput" placeholder="Ask anything about your IT registration..." autocomplete="off" />
+        <button type="submit" class="btn-send" id="btnSend" disabled>➔</button>
       </form>
-      <p class="disclaimer">Admit-assist may make mistakes. Verify important information with your advisor.</p>
     </div>
-  </div>
+  </main>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
 <script>
-/* ================================
-   DATA
-================================ */
-
 const items = [
-  { id:"document_verification", label:"Complete document verification", done:false },
-  { id:"fee_payment", label:"Pay semester fees", done:false },
-  { id:"course_registration", label:"Register for courses", done:false },
-  { id:"hostel_allocation", label:"Apply for hostel", done:false },
-  { id:"lms_onboarding", label:"Complete LMS onboarding", done:false }
+  { id:"doc", label:"Document Verification", done:false },
+  { id:"fee", label:"Semester Fees", done:false },
+  { id:"reg", label:"Course Registration", done:false },
+  { id:"hostel", label:"Hostel Application", done:false },
+  { id:"lms", label:"LMS Onboarding", done:false }
 ];
-
-const seedMessages = [
-  { text:"Hey Nidhi! 👋 Welcome to campus!               ", sender:"ai", time:"9:00 AM" }
-];
-
-const botAvatarHTML = `
-<div class="bot-avatar">
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-    <rect width="18" height="10" x="3" y="11" rx="2"/>
-    <circle cx="12" cy="5" r="2"/>
-    <path d="M12 7v4"/>
-  </svg>
-</div>
-`;
-
-/* ================================
-   CHECKLIST LOGIC
-================================ */
 
 function renderChecklist() {
   const el = document.getElementById('checklist');
-
-  el.innerHTML = items.map(i => `
-    <li>
-      <button class="${i.done ? 'done' : ''}" onclick="toggleItem('${i.id}')">
-        ${i.done ? "✔️" : "⭕"}
-        <span class="item-text">${i.label}</span>
-      </button>
-    </li>
-  `).join('');
-
-  const pct = Math.round(
-    items.filter(i => i.done).length / items.length * 100
-  );
-
+  el.innerHTML = items.map(i => `<li><button class="${i.done ? 'done' : ''}" onclick="toggleItem('${i.id}')"><div class="check-mark">${i.done ? '✓' : ''}</div><span>${i.label}</span></button></li>`).join('');
+  const pct = Math.round(items.filter(i => i.done).length / items.length * 100);
   document.getElementById('progress-pct').textContent = pct + '%';
   document.getElementById('progress-fill').style.width = pct + '%';
+  if (pct === 100) confetti({ particleCount: 200, spread: 70 });
+}
+
+function addCourse(e) {
+  e.preventDefault();
+  const input = document.getElementById('courseInput');
+  const val = input.value.trim();
+  if (val) {
+    document.getElementById('plannerList').insertAdjacentHTML('beforeend', `<div class="planner-item"><span>${val}</span><span style="opacity:0.4">Elective</span></div>`);
+    input.value = '';
+  }
+}
+
+function handleAvatarUpload(input) {
+  const file = input.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = `<img src="${e.target.result}">`;
+      document.getElementById('avatarDisplay').innerHTML = img;
+      document.getElementById('idPhotoPreview').innerHTML = img;
+      localStorage.setItem('userAvatar', e.target.result);
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function handleDocUpload(input) {
+  if (input.files.length > 0) addMessage(`Uploaded: ${input.files[0].name}. Analyzing document for RAG...`, 'ai');
 }
 
 function toggleItem(id) {
-  const item = items.find(i => i.id === id);
-  if (item) {
-    item.done = !item.done;
-    renderChecklist();
-  }
+  const i = items.find(x => x.id === id);
+  if (i) { i.done = !i.done; renderChecklist(); }
 }
 
-/* ================================
-   STATUS SYNC FROM BACKEND
-================================ */
-
-async function loadStatus() {
-  const response = await fetch('/status');
-  const data = await response.json();
-
-  const total = Object.keys(data).length;
-  const completed = Object.values(data).filter(v => v === true).length;
-  const percent = Math.round((completed / total) * 100);
-
-  document.getElementById('progress-pct').textContent = percent + "%";
-  document.getElementById('progress-fill').style.width = percent + "%";
-
-  // Sync checklist visually
-  items.forEach(item => {
-    item.done = data[item.id];
-  });
-
-  renderChecklist();
-}
-
-/* ================================
-   CHAT UI HELPERS
-================================ */
-
-function addMessage(text, sender, time) {
+function addMessage(text, sender) {
   const container = document.getElementById('messages');
-  const isUser = sender === 'user';
-
-  const messageHTML = `
-    <div class="msg ${sender}">
-      ${!isUser ? botAvatarHTML : ''}
-      <div>
-        <div class="bubble ${sender}">${escapeHTML(text)}</div>
-        <div class="time">${time}</div>
-      </div>
-    </div>
-  `;
-
-  container.insertAdjacentHTML("beforeend", messageHTML);
+  container.insertAdjacentHTML("beforeend", `<div class="msg ${sender}"><div class="bubble ${sender}">${text}</div></div>`);
   container.scrollTop = container.scrollHeight;
 }
 
-function escapeHTML(str) {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function getCurrentTime() {
-  return new Date().toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
-
-/* ================================
-   SEND MESSAGE
-================================ */
-
 async function sendMessage(e) {
-  e.preventDefault();
-
+  if(e) e.preventDefault();
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
   if (!text) return;
-
-  addMessage(text, 'user', getCurrentTime());
-
+  addMessage(text, 'user');
   input.value = '';
-  document.getElementById('btnSend').disabled = true;
-
-  const typing = document.getElementById('typing');
-  typing.classList.add('active');
-
-  try {
-    const response = await fetch('/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text })
-    });
-
-    const data = await response.json();
-    typing.classList.remove('active');
-
-    if (!response.ok) {
-      addMessage("⚠️ Server error. Please try again.", 'ai', getCurrentTime());
-      return;
-    }
-
-    addMessage(
-      data.reply || "⚠️ No response from AI.",
-      'ai',
-      getCurrentTime()
-    );
-
-    // Update progress AFTER backend change
-    await loadStatus();
-
-  } catch (err) {
-    typing.classList.remove('active');
-    addMessage("⚠️ Connection error. Backend unreachable.", 'ai', getCurrentTime());
-  }
-
-  document.getElementById('btnSend').disabled = false;
+  setTimeout(() => addMessage("Searching campus records for your 2nd year IT updates, Nidhi...", 'ai'), 800);
 }
 
-/* ================================
-   SIDEBAR TOGGLE
-================================ */
+function sendQuickMessage(text) { document.getElementById('chatInput').value = text; sendMessage(); }
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('closed'); }
 
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('overlay').classList.toggle('active');
+function toggleTheme() {
+  document.body.classList.toggle('dark-mode');
+  const isDark = document.body.classList.contains('dark-mode');
+  document.getElementById('themeToggleBtn').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
 }
 
-/* ================================
-   INIT
-================================ */
-
-document.getElementById('chatInput').addEventListener('input', function () {
-  document.getElementById('btnSend').disabled = !this.value.trim();
+document.getElementById('chatInput').addEventListener('input', function () { 
+  document.getElementById('btnSend').disabled = !this.value.trim(); 
 });
 
-renderChecklist();
-seedMessages.forEach(m => addMessage(m.text, m.sender, m.time));
-loadStatus();
+window.onload = () => {
+  const savedAvatar = localStorage.getItem('userAvatar');
+  if (savedAvatar) {
+    document.getElementById('avatarDisplay').innerHTML = `<img src="${savedAvatar}">`;
+    document.getElementById('idPhotoPreview').innerHTML = `<img src="${savedAvatar}">`;
+  }
+  if (localStorage.getItem('theme') === 'dark') toggleTheme();
+  renderChecklist();
+  setTimeout(() => addMessage("Welcome back Nidhi!", "ai"), 800);
+};
 </script>
+</body>
+</html>
