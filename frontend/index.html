@@ -294,15 +294,16 @@
 
     <div id="adminView">
         <h2 style="margin-bottom: 10px; font-weight: 800; color: var(--fg);">Campus Governance</h2>
+        <button id="seedBtn" onclick="seedData()" style="margin-bottom: 20px; background:var(--sidebar-accent); color:#fff; border:none; padding:8px 16px; border-radius:10px; font-size:10px; font-weight:800; cursor:pointer; text-transform:uppercase; transition: 0.3s;">
+    🌱 Seed 50 Students into PostgreSQL
+</button>
         <p style="opacity: 0.5; font-size: 13px; margin-bottom: 30px;">Overview for IT Admission Department [cite: 2026-02-19]</p>
-        
-        <div class="admin-stat-row">
-            <div class="admin-card"><div class="val">120</div><div class="lab">Total Students</div></div>
-            <div class="admin-card"><div class="val">82</div><div class="lab">Enrolled</div></div>
-            <div class="admin-card"><div class="val">14</div><div class="lab">Pending Fees</div></div>
-            <div class="admin-card"><div class="val">9</div><div class="lab">Pending Docs</div></div>
-        </div>
-
+       <div class="admin-stat-row">
+    <div class="admin-card"><div class="val" id="totalCount">0</div><div class="lab">Total Students</div></div>
+    <div class="admin-card"><div class="val" id="enrolledCount">0</div><div class="lab">Enrolled</div></div>
+    <div class="admin-card"><div class="val" id="pendingFeesCount">0</div><div class="lab">Pending Fees</div></div>
+    <div class="admin-card"><div class="val" id="pendingDocsCount">0</div><div class="lab">Pending Docs</div></div>
+</div>
         <div class="dash-card" style="background: rgba(239, 83, 80, 0.05); border: 1px solid rgba(239, 83, 80, 0.2); display: flex; flex-direction: column; gap: 20px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
@@ -347,8 +348,8 @@ let feeDeadlineTime = new Date('August 25, 2026 23:59:59').getTime();
 let aiUnresolvedCount = 0; 
 
 /**
- * FEATURE: GLOBAL STATE SYNC
- * This function forces all three panels to match your current data.
+ * FEATURE: GLOBAL STATE SYNC (PostgreSQL Integrated)
+ * This function forces all three panels to match your database data.
  */
 function syncAllDataStates() {
     const totalItems = items.length;
@@ -356,27 +357,17 @@ function syncAllDataStates() {
     const pct = Math.round((completedItems / totalItems) * 100);
     const pctString = pct + '%';
 
-    // 1. Sync Sidebar
     document.getElementById('progress-pct').textContent = pctString;
     document.getElementById('progress-fill').style.width = pctString;
 
-    // 2. Sync Student Dashboard (Even if hidden)
     const dashPct = document.getElementById('dashPct');
     if (dashPct) {
         dashPct.textContent = pctString;
         document.getElementById('dashStatusText').textContent = (pct === 100) ? 'Enrollment Active' : 'Onboarding Pending';
     }
 
-    // 3. Sync Admin Panel (Simulation of Nidhi's contribution to metrics)
-    const adminEnrolledVal = document.querySelector('.admin-card:nth-child(2) .val');
-    if (adminEnrolledVal && pct === 100) {
-        adminEnrolledVal.textContent = "83"; // Simulates "Enrolled" count increasing
-    }
-
-    // 4. Persistence
     localStorage.setItem('onboardingTasks', JSON.stringify(items));
     
-    // 5. Logic Checkers
     checkRiskLevel();
     if (pct === 100) {
         confetti({ particleCount: 200, spread: 70 });
@@ -386,14 +377,65 @@ function syncAllDataStates() {
     }
 }
 
-// FEATURE: Switch between Chat, Dashboard, and Admin with Backend Sync
+// NEW FUNCTION: Trigger the 50-student seeding
+async function seedData() {
+    const btn = document.querySelector('button[onclick="seedData()"]');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "⌛ Seeding Database...";
+
+    try {
+        const res = await fetch('/admin/seed', { method: 'POST' });
+        const data = await res.json();
+        if(data.status === "success") {
+            confetti({ particleCount: 150, spread: 70, colors: ['#79A3C3', '#ffffff'] });
+            await switchView('admin'); // Instantly show 51 students
+        }
+    } catch (err) { console.error("Seed failed:", err); }
+    finally {
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }, 2000);
+    }
+}
+
+async function toggleItem(id) {
+  const i = items.find(x => x.id === id);
+  if (!i) return;
+
+  i.done = !i.done;
+  renderChecklist();
+
+  const statusObject = {
+      doc: items.find(x => x.id === "doc").done,
+      fee: items.find(x => x.id === "fee").done,
+      reg: items.find(x => x.id === "reg").done,
+      hostel: items.find(x => x.id === "hostel").done,
+      lms: items.find(x => x.id === "lms").done
+  };
+
+  try {
+      await fetch('/api/update-onboarding', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: statusObject })
+      });
+
+      await switchView('admin'); // refresh admin numbers live
+  } catch (err) {
+      console.error("DB sync failed:", err);
+  }
+}
+
+
+// FEATURE: Switch Views with Backend Sync
 async function switchView(view) {
     const chatComps = [document.getElementById('messages'), document.querySelector('.quick-chips'), document.querySelector('.chat-input-area')];
     const dashView = document.getElementById('dashboardView');
     const adminView = document.getElementById('adminView');
     
     [document.getElementById('navChat'), document.getElementById('navDash'), document.getElementById('navAdmin')].forEach(n => n.classList.remove('done'));
-
     chatComps.forEach(el => el.style.display = 'none');
     dashView.style.display = 'none';
     adminView.style.display = 'none';
@@ -401,7 +443,7 @@ async function switchView(view) {
     if (view === 'dash') {
         dashView.style.display = 'block';
         document.getElementById('navDash').classList.add('done');
-        syncAllDataStates(); // Refresh visuals on entry
+        syncAllDataStates(); 
     } 
     else if (view === 'admin') {
         adminView.style.display = 'block';
@@ -409,12 +451,17 @@ async function switchView(view) {
         try {
             const response = await fetch('/admin/stats');
             const stats = await response.json();
-            const adminCards = document.querySelectorAll('.admin-card .val');
-            adminCards[0].textContent = stats.total_students;
-            adminCards[1].textContent = stats.enrolled;
-            adminCards[2].textContent = stats.pending_fees;
-            adminCards[3].textContent = stats.pending_docs;
-            document.querySelector('.risk-badge').textContent = `${stats.high_risk_alerts} CRITICAL ALERTS`;
+            
+            // CONNECTING TO YOUR HTML IDs
+            document.getElementById('totalCount').textContent = stats.total_students;
+            document.getElementById('enrolledCount').textContent = stats.enrolled;
+            document.getElementById('pendingFeesCount').textContent = stats.pending_fees;
+            document.getElementById('pendingDocsCount').textContent = stats.pending_docs;
+            
+            const riskBadge = document.querySelector('.risk-badge');
+            if (riskBadge) {
+                riskBadge.textContent = `${stats.high_risk_alerts} CRITICAL ALERTS`;
+            }
         } catch (err) { console.error("Admin stats fetch failed:", err); }
     } 
     else {
@@ -425,7 +472,7 @@ async function switchView(view) {
     }
 }
 
-// FEATURE: Connected Chat with RAG & Global State Update
+// FEATURE: Database-Connected Assistant Chat
 async function sendMessage(e) {
   if(e) e.preventDefault();
   const input = document.getElementById('chatInput');
@@ -445,14 +492,13 @@ async function sendMessage(e) {
     const data = await response.json();
     addMessage(data.reply, 'ai');
 
-    // Update global state if AI updated checkboxes
     if (data.status) {
         items.forEach(item => {
             if (data.status[item.id] !== undefined) {
                 item.done = data.status[item.id];
             }
         });
-        renderChecklist(); // Triggers the sync loop
+        renderChecklist(); 
     }
     aiUnresolvedCount = 0;
   } catch (err) {
@@ -523,7 +569,7 @@ function initHeaderDeadline() {
 function renderChecklist() {
   const el = document.getElementById('checklist');
   el.innerHTML = items.map(i => `<li><button class="${i.done ? 'done' : ''}" onclick="toggleItem('${i.id}')"><div class="check-mark">${i.done ? '✓' : ''}</div><span>${i.label}</span></button></li>`).join('');
-  syncAllDataStates(); // THE BRIDGE: Keeps Sidebar and Dash in sync
+  syncAllDataStates(); 
 }
 
 function toggleItem(id) {
@@ -578,7 +624,7 @@ document.getElementById('chatInput').addEventListener('input', function () {
   document.getElementById('btnSend').disabled = !this.value.trim(); 
 });
 
-window.onload = () => {
+window.onload = async () => {
   const savedAvatar = localStorage.getItem('userAvatar');
   if (savedAvatar) {
     document.getElementById('avatarDisplay').innerHTML = `<img src="${savedAvatar}">`;
@@ -586,9 +632,23 @@ window.onload = () => {
   }
   const savedPlanner = localStorage.getItem('plannerHtml');
   if (savedPlanner) document.getElementById('plannerList').innerHTML = savedPlanner;
+  
   if (localStorage.getItem('theme') === 'dark') toggleTheme();
+
+  try {
+      const response = await fetch('/api/get-onboarding');
+      const dbStatus = await response.json();
+      if (dbStatus && !dbStatus.error) {
+          items.forEach(item => {
+              if (dbStatus[item.id] !== undefined) item.done = dbStatus[item.id];
+          });
+      }
+  } catch (err) { console.error("Database fetch failed:", err); }
+
   renderChecklist();
   initHeaderDeadline();
   setTimeout(() => addMessage("Welcome back Nidhi!", "ai"), 800);
 };
 </script>
+</body>
+</html>
