@@ -127,6 +127,20 @@ This reduces hallucination and improves reliability.
 - Mrudul Narkhede – Backend & AI Integration
 - Nidhi Parate  – Frontend & UX
 
+## 📸 Demo Screenshots
+
+
+### Chat Interface
+![Chat UI](assets/screenshot1.png)
+
+### RAG Answer Example
+![RAG Output](assets/screenshot3.png)
+
+### Progress Tracker
+![Progress](assets/screenshot2.png)
+
+
+
 Second Year Btech IT student at UMIT.
 
 ## Conclusion
