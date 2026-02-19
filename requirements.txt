@@ -1,5 +1,29 @@
-flask
-flask-cors
-python-dotenv
-requests
-openai
+flask==3.0.0
+flask-cors==4.0.0
+python-dotenv==1.0.0
+requests==2.31.0
+google-generativeai==0.3.1
+openai==1.12.0
+
+To get the Admit-assist portal running on a new machine, they just need to run these three commands in their terminal:
+
+Create a Virtual Environment:
+python -m venv venv
+
+Activate it:
+
+Windows: venv\Scripts\activate
+
+Mac/Linux: source venv/bin/activate
+
+Install everything:
+pip install -r requirements.txt
+
+Project Readiness Checklist:
+frontend/index.html: Fully connected to /chat, /upload, and /admin/stats.
+
+app.py: Properly serves the Midnight Chocolate UI and handles the August 25th Fee Deadline logic.
+
+backend/rag.py: Optimized for the paragraph-style Admission Brochure.
+
+.env: Ensure your one creates this file and adds their GEMINI_API_KEY before running the project.
