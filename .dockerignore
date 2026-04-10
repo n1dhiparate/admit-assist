@@ -1,0 +1,8 @@
+venv/
+__pycache__/
+.env
+.git/
+.gitignore
+*.pyc
+# Allow container to build its own FAISS index natively
+backend/data/*.bin
