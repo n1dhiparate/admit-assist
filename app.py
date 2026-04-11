@@ -4,8 +4,13 @@ from dotenv import load_dotenv
 import random
 import os
 import requests
-from backend.rag import retrieve_context
-from groq import Groq
+from datetime import timedelta
+from backend.rag.rag import retrieve_context
+
+try:
+    from groq import Groq
+except ImportError:
+    Groq = None
 
 # Import new ORM and Auth tools
 from backend.models import db, Student 
@@ -29,6 +34,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY", "super-secret-key-change-me")
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
 
 db.init_app(app)
 jwt = JWTManager(app)
@@ -101,11 +107,9 @@ def seed_database():
             s_id = f"IT-2026-{1000 + i}"
             s_name = f"{random.choice(first_names)} {random.choice(last_names)}"
             status = {
-                "doc": random.choice([True, False]),
-                "fee": random.choice([True, False]),
-                "reg": random.choice([True, False]),
-                "hostel": random.choice([True, False]),
-                "lms": random.choice([True, False])
+                "documents": random.choice([True, False]),
+                "fees": random.choice([True, False]),
+                "registration": random.choice([True, False])
             }
 
             new_student = Student(
@@ -140,7 +144,7 @@ def get_onboarding():
     student = Student.query.filter_by(student_id=current_user_id).first()
     if student:
         return jsonify(student.onboarding_status)
-    return jsonify({"doc": False, "fee": False, "reg": False, "hostel": False, "lms": False})
+    return jsonify({"documents": False, "fees": False, "registration": False})
 
 @app.route('/api/update-onboarding', methods=['POST'])
 @jwt_required(optional=True)
@@ -173,11 +177,11 @@ def get_admin_stats():
 
         for s in students:
             st = s.onboarding_status
-            if st.get("doc") and st.get("fee") and st.get("reg") and st.get("hostel") and st.get("lms"):
+            if st.get("documents") and st.get("fees") and st.get("registration"):
                 enrolled += 1
-            if not st.get("fee"):
+            if not st.get("fees"):
                 pending_fees += 1
-            if not st.get("doc"):
+            if not st.get("documents"):
                 pending_docs += 1
 
         return jsonify({
@@ -202,68 +206,52 @@ def get_admin_stats():
 @jwt_required(optional=True)
 def chat():
     current_user_id = get_jwt_identity() or 'IT-2026-NP'
-    student = Student.query.filter_by(student_id=current_user_id).first()
     
+    student = Student.query.filter_by(student_id=current_user_id).first()
     if not student:
-        return jsonify({"reply": "User context not found.", "status": None})
+        return jsonify({
+            "message": "User context not found.",
+            "status": {
+                "documents": False,
+                "fees": False,
+                "registration": False
+            }
+        })
 
     data = request.get_json()
     user_message = data.get("message", "")
-    message = user_message.lower()
 
-    updated = False
-    status = student.onboarding_status.copy() # important: copy so SQLAlchemy detects mutation
-
-    if "document" in message and ("complete" in message or "verified" in message):
-        status["doc"] = True
-        updated = True
-    if "fee" in message and ("paid" in message or "done" in message):
-        status["fee"] = True
-        updated = True
-    if "register" in message and "course" in message:
-        status["reg"] = True
-        updated = True
-
-    if updated:
-        student.onboarding_status = status
-        db.session.commit()
-
-    context = retrieve_context(user_message)
-    
-    final_prompt = f"""
-You are Admit-Assist.
-Answer ONLY from CONTEXT.
-Return answer in this exact format:
-<Short Answer>
-Source: Official Admission Brochure
-Do not add anything else.
-
-CONTEXT:
-{context}
-
-QUESTION:
-{user_message}
-"""
-    
     try:
-        if not GROQ_API_KEY or GROQ_API_KEY == "your_groq_api_key_here":
-            return jsonify({"reply": "Please set GROQ_API_KEY in .env file.", "status": student.onboarding_status})
+        from backend.agent.agent import AdmitAssistAgent
+        agent = AdmitAssistAgent()
 
-        client = Groq(api_key=GROQ_API_KEY)
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": final_prompt,
-                }
-            ],
-            model="llama-3.1-8b-instant",
-        )
-        reply = chat_completion.choices[0].message.content
-        return jsonify({"reply": reply, "status": student.onboarding_status, "source": "Admission Brochure"})
+        # 🔥 agent returns ONLY message
+        reply = agent.run(user_message, current_user_id)
+
+        # 🔥 refresh DB state
+        db.session.refresh(student)
+
+        # 🔥 ALWAYS send structured response
+        return jsonify({
+            "message": reply,
+            "status": {
+                "documents": student.onboarding_status.get("doc", False),
+                "fees": student.onboarding_status.get("fees", False),
+                "registration": student.onboarding_status.get("registration", False)
+            }
+        })
+
     except Exception as e:
-        print(f"Groq API Error: {e}")
-        return jsonify({"reply": "I could not find this information in the admission brochure.", "status": student.onboarding_status})
+        print("Agent Error:", e)
+
+        return jsonify({
+            "message": "Something went wrong. Please try again.",
+            "status": {
+                "documents": student.onboarding_status.get("doc", False),
+                "fees": student.onboarding_status.get("fees", False),
+                "registration": student.onboarding_status.get("registration", False)
+            }
+        })
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000, debug=True)

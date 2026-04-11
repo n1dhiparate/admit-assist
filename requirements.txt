@@ -14,3 +14,5 @@ python-dotenv
 groq
 sentence-transformers
 gunicorn
+PyYAML
+PyPDF2

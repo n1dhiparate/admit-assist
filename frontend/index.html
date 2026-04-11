@@ -334,320 +334,238 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+
 <script>
-// FEATURE: Persistent State Management
 const items = JSON.parse(localStorage.getItem('onboardingTasks')) || [
-  { id:"doc", label:"Document Verification (Aug 1-10)", done:false },
-  { id:"fee", label:"Semester Fees (Deadline: Aug 25)", done:false },
-  { id:"reg", label:"Course Registration (Opens Aug 20)", done:false },
-  { id:"hostel", label:"Hostel Application (List: Aug 18)", done:false },
-  { id:"lms", label:"LMS Onboarding", done:false }
+  { id:"documents", label:"Document Verification (Aug 1-10)", done:false },
+  { id:"fees", label:"Semester Fees (Deadline: Aug 25)", done:false },
+  { id:"registration", label:"Course Registration (Opens Aug 20)", done:false }
 ];
 
 let feeDeadlineTime = new Date('August 25, 2026 23:59:59').getTime();
-let aiUnresolvedCount = 0; 
+let aiUnresolvedCount = 0;
 
-/**
- * FEATURE: GLOBAL STATE SYNC (PostgreSQL Integrated)
- * This function forces all three panels to match your database data.
- */
+// ---------------- GLOBAL SYNC ----------------
 function syncAllDataStates() {
-    const totalItems = items.length;
-    const completedItems = items.filter(i => i.done).length;
-    const pct = Math.round((completedItems / totalItems) * 100);
-    const pctString = pct + '%';
+    const total = items.length;
+    const done = items.filter(i => i.done).length;
+    const pct = Math.round((done / total) * 100);
 
-    document.getElementById('progress-pct').textContent = pctString;
-    document.getElementById('progress-fill').style.width = pctString;
+    document.getElementById('progress-pct').textContent = pct + '%';
+    document.getElementById('progress-fill').style.width = pct + '%';
 
     const dashPct = document.getElementById('dashPct');
     if (dashPct) {
-        dashPct.textContent = pctString;
-        document.getElementById('dashStatusText').textContent = (pct === 100) ? 'Enrollment Active' : 'Onboarding Pending';
+        dashPct.textContent = pct + '%';
+        document.getElementById('dashStatusText').textContent =
+            pct === 100 ? 'Enrollment Active' : 'Onboarding Pending';
     }
 
     localStorage.setItem('onboardingTasks', JSON.stringify(items));
-    
-    checkRiskLevel();
+
     if (pct === 100) {
-        confetti({ particleCount: 200, spread: 70 });
-        const status = document.getElementById('idStatus');
-        status.textContent = "Enrollment Active";
-        status.style.color = "#10b981";
+        confetti({ particleCount: 150, spread: 70 });
     }
+
+    checkRiskLevel();
 }
 
-// NEW FUNCTION: Trigger the 50-student seeding
-async function seedData() {
-    const btn = document.querySelector('button[onclick="seedData()"]');
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = "⌛ Seeding Database...";
+// ---------------- CHECKLIST RENDER ----------------
+function renderChecklist() {
+    const el = document.getElementById('checklist');
+    if (!el) return;
+
+    el.innerHTML = items.map(i => `
+        <li>
+            <button class="${i.done ? 'done' : ''}" onclick="toggleItem('${i.id}')">
+                <div class="check-mark">${i.done ? '✓' : ''}</div>
+                <span>${i.label}</span>
+            </button>
+        </li>
+    `).join('');
+
+    syncAllDataStates();
+}
+
+// ---------------- TOGGLE ITEM (FIXED) ----------------
+async function toggleItem(id) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+
+    item.done = !item.done;
+    renderChecklist();
+
+    const status = {
+        documents: items.find(i => i.id === "documents").done,
+        fees: items.find(i => i.id === "fees").done,
+        registration: items.find(i => i.id === "registration").done
+    };
 
     try {
-        const res = await fetch('/admin/seed', { method: 'POST' });
-        const data = await res.json();
-        if(data.status === "success") {
-            confetti({ particleCount: 150, spread: 70, colors: ['#79A3C3', '#ffffff'] });
-            await switchView('admin'); // Instantly show 51 students
-        }
-    } catch (err) { console.error("Seed failed:", err); }
-    finally {
-        setTimeout(() => {
-            btn.disabled = false;
-            btn.textContent = originalText;
-        }, 2000);
-    }
-}
-
-async function toggleItem(id) {
-  const i = items.find(x => x.id === id);
-  if (!i) return;
-
-  i.done = !i.done;
-  renderChecklist();
-
-  const statusObject = {
-      doc: items.find(x => x.id === "doc").done,
-      fee: items.find(x => x.id === "fee").done,
-      reg: items.find(x => x.id === "reg").done,
-      hostel: items.find(x => x.id === "hostel").done,
-      lms: items.find(x => x.id === "lms").done
-  };
-
-  try {
-      await fetch('/api/update-onboarding', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: statusObject })
-      });
-
-      await switchView('admin'); // refresh admin numbers live
-  } catch (err) {
-      console.error("DB sync failed:", err);
-  }
-}
-
-
-// FEATURE: Switch Views with Backend Sync
-async function switchView(view) {
-    const chatComps = [document.getElementById('messages'), document.querySelector('.quick-chips'), document.querySelector('.chat-input-area')];
-    const dashView = document.getElementById('dashboardView');
-    const adminView = document.getElementById('adminView');
-    
-    [document.getElementById('navChat'), document.getElementById('navDash'), document.getElementById('navAdmin')].forEach(n => n.classList.remove('done'));
-    chatComps.forEach(el => el.style.display = 'none');
-    dashView.style.display = 'none';
-    adminView.style.display = 'none';
-
-    if (view === 'dash') {
-        dashView.style.display = 'block';
-        document.getElementById('navDash').classList.add('done');
-        syncAllDataStates(); 
-    } 
-    else if (view === 'admin') {
-        adminView.style.display = 'block';
-        document.getElementById('navAdmin').classList.add('done');
-        try {
-            const response = await fetch('/admin/stats');
-            const stats = await response.json();
-            
-            // CONNECTING TO YOUR HTML IDs
-            document.getElementById('totalCount').textContent = stats.total_students;
-            document.getElementById('enrolledCount').textContent = stats.enrolled;
-            document.getElementById('pendingFeesCount').textContent = stats.pending_fees;
-            document.getElementById('pendingDocsCount').textContent = stats.pending_docs;
-            
-            const riskBadge = document.querySelector('.risk-badge');
-            if (riskBadge) {
-                riskBadge.textContent = `${stats.high_risk_alerts} CRITICAL ALERTS`;
-            }
-        } catch (err) { console.error("Admin stats fetch failed:", err); }
-    } 
-    else {
-        chatComps[0].style.display = 'flex';
-        chatComps[1].style.display = 'flex';
-        chatComps[2].style.display = 'block';
-        document.getElementById('navChat').classList.add('done');
-    }
-}
-
-// FEATURE: Database-Connected Assistant Chat
-async function sendMessage(e) {
-  if(e) e.preventDefault();
-  const input = document.getElementById('chatInput');
-  const text = input.value.trim();
-  if (!text) return;
-  
-  addMessage(text, 'user');
-  input.value = '';
-
-  try {
-    const response = await fetch('/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text })
-    });
-    
-    const data = await response.json();
-    addMessage(data.reply, 'ai');
-
-    if (data.status) {
-        items.forEach(item => {
-            if (data.status[item.id] !== undefined) {
-                item.done = data.status[item.id];
-            }
+        await fetch('/api/update-onboarding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
         });
-        renderChecklist(); 
+
+        await refreshAdminStats();
+    } catch (err) {
+        console.error("DB sync failed:", err);
     }
-    aiUnresolvedCount = 0;
-  } catch (err) {
-    addMessage("Searching campus records for your 2nd year IT updates...", 'ai');
-    aiUnresolvedCount++;
-    if (aiUnresolvedCount >= 2) setTimeout(showEscalationModal, 1500); 
-  }
 }
 
-// FEATURE: Backend-connected Document Upload
+// ---------------- ADMIN REFRESH ----------------
+async function refreshAdminStats() {
+    try {
+        const res = await fetch('/admin/stats');
+        const stats = await res.json();
+
+        document.getElementById('totalCount').textContent = stats.total_students;
+        document.getElementById('enrolledCount').textContent = stats.enrolled;
+        document.getElementById('pendingFeesCount').textContent = stats.pending_fees;
+        document.getElementById('pendingDocsCount').textContent = stats.pending_docs;
+
+        const riskBadge = document.querySelector('.risk-badge');
+        if (riskBadge) {
+            riskBadge.textContent = `${stats.high_risk_alerts} CRITICAL ALERTS`;
+        }
+    } catch (err) {
+        console.error("Admin refresh failed:", err);
+    }
+}
+
+// ---------------- CHAT ----------------
+async function sendMessage(e) {
+    if (e) e.preventDefault();
+
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    addMessage(text, 'user');
+    input.value = '';
+
+    try {
+        const res = await fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text })
+        });
+
+        const data = await res.json();
+
+        addMessage(data.reply, 'ai');
+
+        if (data.status) {
+            items.forEach(i => {
+                if (data.status[i.id] !== undefined) {
+                    i.done = data.status[i.id];
+                }
+            });
+            renderChecklist();
+        }
+
+        aiUnresolvedCount = 0;
+
+    } catch (err) {
+        addMessage("Searching campus records...", 'ai');
+        aiUnresolvedCount++;
+    }
+}
+
+// ---------------- UPLOAD ----------------
 async function handleDocUpload(input) {
-  if (input.files.length > 0) {
+    if (!input.files.length) return;
+
     const formData = new FormData();
     formData.append('file', input.files[0]);
-    addMessage(`Uploading ${input.files[0].name} for analysis...`, 'ai');
+
+    addMessage(`Uploading ${input.files[0].name}...`, 'ai');
+
     try {
-      const response = await fetch('/upload', { method: 'POST', body: formData });
-      const data = await response.json();
-      addMessage(data.reply, 'ai');
-    } catch (err) { addMessage("Upload failed. Ensure backend is running.", 'ai'); }
-  }
+        const res = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await res.json();
+        addMessage(data.reply, 'ai');
+
+    } catch {
+        addMessage("Upload failed.", 'ai');
+    }
 }
 
+// ---------------- RISK ----------------
 function checkRiskLevel() {
-    const feeItem = items.find(i => i.id === "fee");
+    const fee = items.find(i => i.id === "fees");
     const now = new Date().getTime();
     const diff = feeDeadlineTime - now;
-    const riskBox = document.getElementById('riskAlert');
-    if (!feeItem.done && diff < 172800000 && diff > 0) {
-        riskBox.classList.add('active');
+
+    const box = document.getElementById('riskAlert');
+
+    if (!fee.done && diff < 172800000 && diff > 0) {
+        box.classList.add('active');
     } else {
-        riskBox.classList.remove('active');
+        box.classList.remove('active');
     }
 }
 
-async function triggerBulkReminders() {
-    const btn = document.getElementById('btnBulkReminder');
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = "⌛ Dispatching Notifications...";
-    btn.style.opacity = "0.6";
-    setTimeout(() => {
-        btn.style.background = "#10b981";
-        btn.textContent = "✅ Notifications Sent to 6 Students";
-        confetti({ particleCount: 150, spread: 60, colors: ['#ef5350', '#10b981', '#79A3C3'] });
-        setTimeout(() => {
-            btn.disabled = false;
-            btn.style.background = "#ef5350";
-            btn.textContent = originalText;
-            btn.style.opacity = "1";
-        }, 3000);
-    }, 1500);
-}
-
-function initHeaderDeadline() {
-    function update() {
-        const now = new Date().getTime();
-        const diff = feeDeadlineTime - now;
-        if (diff <= 0) { document.getElementById('headerCountdown').textContent = "EXPIRED"; return; }
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        document.getElementById('headerCountdown').textContent = `${days}d ${hours}h Left`;
-        checkRiskLevel();
-    }
-    update(); setInterval(update, 60000);
-}
-
-function renderChecklist() {
-  const el = document.getElementById('checklist');
-  el.innerHTML = items.map(i => `<li><button class="${i.done ? 'done' : ''}" onclick="toggleItem('${i.id}')"><div class="check-mark">${i.done ? '✓' : ''}</div><span>${i.label}</span></button></li>`).join('');
-  syncAllDataStates(); 
-}
-
-function toggleItem(id) {
-  const i = items.find(x => x.id === id);
-  if (i) { i.done = !i.done; renderChecklist(); }
-}
-
+// ---------------- MESSAGE ----------------
 function addMessage(text, sender) {
-  const container = document.getElementById('messages');
-  let aiPrefix = (sender === 'ai') ? `<div class="ai-badge"><span>🤖 AI-generated response</span><span class="source-tag">📄 Source: Official Admission Brochure</span></div>` : '';
-  container.insertAdjacentHTML("beforeend", `<div class="msg ${sender}"><div style="width:100%; display:flex; flex-direction:column; align-items: ${sender === 'user' ? 'flex-end' : 'flex-start'}">${aiPrefix}<div class="bubble ${sender}">${text}</div></div></div>`);
-  container.scrollTop = container.scrollHeight;
+    const container = document.getElementById('messages');
+
+    const prefix = sender === 'ai'
+        ? `<div class="ai-badge">🤖 AI-generated response</div>`
+        : '';
+
+    container.insertAdjacentHTML("beforeend", `
+        <div style="display:flex;flex-direction:column;align-items:${sender === 'user' ? 'flex-end' : 'flex-start'}">
+            ${prefix}
+            <div class="bubble ${sender}">
+                ${text}
+            </div>
+        </div>
+    `);
+
+    container.scrollTop = container.scrollHeight;
 }
 
-function addCourse(e) {
-  e.preventDefault();
-  const input = document.getElementById('courseInput');
-  const val = input.value.trim();
-  if (val) {
-    const list = document.getElementById('plannerList');
-    list.insertAdjacentHTML('beforeend', `<div class="planner-item"><span>${val}</span><span style="opacity:0.4">Elective</span></div>`);
-    localStorage.setItem('plannerHtml', list.innerHTML);
-    input.value = '';
-  }
+// ---------------- SMALL UTILS ----------------
+function sendQuickMessage(text) {
+    document.getElementById('chatInput').value = text;
+    sendMessage();
 }
 
-function handleAvatarUpload(input) {
-  const file = input.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = `<img src="${e.target.result}">`;
-      document.getElementById('avatarDisplay').innerHTML = img;
-      document.getElementById('idPhotoPreview').innerHTML = img;
-      localStorage.setItem('userAvatar', e.target.result);
-    };
-    reader.readAsDataURL(file);
-  }
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('closed');
 }
-
-function sendQuickMessage(text) { document.getElementById('chatInput').value = text; sendMessage(); }
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('closed'); }
 
 function toggleTheme() {
-  document.body.classList.toggle('dark-mode');
-  const isDark = document.body.classList.contains('dark-mode');
-  document.getElementById('themeToggleBtn').textContent = isDark ? 'Light Mode' : 'Dark Mode';
-  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    document.body.classList.toggle('dark-mode');
 }
 
-document.getElementById('chatInput').addEventListener('input', function () { 
-  document.getElementById('btnSend').disabled = !this.value.trim(); 
-});
+// ---------------- SAFE INPUT ----------------
+const input = document.getElementById('chatInput');
+if (input) {
+    input.addEventListener('input', function () {
+        document.getElementById('btnSend').disabled = !this.value.trim();
+    });
+}
 
+// ---------------- INIT ----------------
 window.onload = async () => {
-  const savedAvatar = localStorage.getItem('userAvatar');
-  if (savedAvatar) {
-    document.getElementById('avatarDisplay').innerHTML = `<img src="${savedAvatar}">`;
-    document.getElementById('idPhotoPreview').innerHTML = `<img src="${savedAvatar}">`;
-  }
-  const savedPlanner = localStorage.getItem('plannerHtml');
-  if (savedPlanner) document.getElementById('plannerList').innerHTML = savedPlanner;
-  
-  if (localStorage.getItem('theme') === 'dark') toggleTheme();
+    try {
+        const res = await fetch('/api/get-onboarding');
+        const db = await res.json();
 
-  try {
-      const response = await fetch('/api/get-onboarding');
-      const dbStatus = await response.json();
-      if (dbStatus && !dbStatus.error) {
-          items.forEach(item => {
-              if (dbStatus[item.id] !== undefined) item.done = dbStatus[item.id];
-          });
-      }
-  } catch (err) { console.error("Database fetch failed:", err); }
+        items.forEach(i => {
+            if (db[i.id] !== undefined) i.done = db[i.id];
+        });
+    } catch {}
 
-  renderChecklist();
-  initHeaderDeadline();
-  setTimeout(() => addMessage("Welcome back Nidhi!", "ai"), 800);
+    renderChecklist();
+    setTimeout(() => addMessage("Welcome back Nidhi!", "ai"), 600);
 };
 </script>
 </body>
